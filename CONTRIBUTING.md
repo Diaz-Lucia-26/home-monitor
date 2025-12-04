@@ -113,7 +113,6 @@ home-monitor/
 ## 需要帮助？
 
 - 查看 [README](README.md) 了解项目概况
-- 在 [Discussions](https://github.com/ghost-die/home-monitor/discussions) 中提问
 - 通过 Issue 寻求帮助
 
 再次感谢你的贡献！🙏
