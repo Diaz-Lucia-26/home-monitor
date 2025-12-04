@@ -8,7 +8,7 @@
 
 如果你发现了 bug 或有功能建议，请：
 
-1. 先搜索 [已有的 Issues](https://github.com/your-username/home-monitor/issues) 确认问题是否已被报告
+1. 先搜索 [已有的 Issues](https://github.com/ghost-die/home-monitor/issues) 确认问题是否已被报告
 2. 如果没有，创建一个新的 Issue，并提供：
    - 清晰的问题描述
    - 复现步骤
@@ -21,7 +21,7 @@
 1. **Fork 项目** - 点击右上角的 Fork 按钮
 2. **克隆你的 Fork**
    ```bash
-   git clone https://github.com/your-username/home-monitor.git
+   git clone https://github.com/ghost-die/home-monitor.git
    cd home-monitor
    ```
 3. **创建功能分支**
@@ -113,7 +113,7 @@ home-monitor/
 ## 需要帮助？
 
 - 查看 [README](README.md) 了解项目概况
-- 在 [Discussions](https://github.com/your-username/home-monitor/discussions) 中提问
+- 在 [Discussions](https://github.com/ghost-die/home-monitor/discussions) 中提问
 - 通过 Issue 寻求帮助
 
 再次感谢你的贡献！🙏

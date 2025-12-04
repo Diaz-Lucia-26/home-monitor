@@ -2,8 +2,8 @@
 
 [![Go Version](https://img.shields.io/badge/Go-1.21+-00ADD8?style=flat&logo=go)](https://go.dev/)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Build Status](https://github.com/your-username/home-monitor/actions/workflows/build.yml/badge.svg)](https://github.com/your-username/home-monitor/actions)
-[![Release](https://img.shields.io/github/v/release/your-username/home-monitor?include_prereleases)](https://github.com/your-username/home-monitor/releases)
+[![Build Status](https://github.com/ghost-die/home-monitor/actions/workflows/build.yml/badge.svg)](https://github.com/ghost-die/home-monitor/actions)
+[![Release](https://img.shields.io/github/v/release/ghost-die/home-monitor?include_prereleases)](https://github.com/ghost-die/home-monitor/releases)
 
 一个功能丰富的家庭监控服务，支持树莓派、Linux、Windows、macOS 系统，提供实时视频预览、录像存储、直播推流等功能。
 
@@ -379,5 +379,5 @@ home-monitor/
 
 ## 📞 联系方式
 
-- 提交 [Issue](https://github.com/your-username/home-monitor/issues) 报告 Bug 或建议功能
-- 参与 [Discussions](https://github.com/your-username/home-monitor/discussions) 进行讨论
+- 提交 [Issue](https://github.com/ghost-die/home-monitor/issues) 报告 Bug 或建议功能
+- 参与 [Discussions](https://github.com/ghost-die/home-monitor/discussions) 进行讨论
