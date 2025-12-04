@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HLS 推流管理</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+            font-weight: 300;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .card h2 {
+            font-size: 18px;
+            color: #333;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            color: #666;
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+        
+        .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .form-group select:focus {
+            outline: none;
+            border-color: #007bff;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary {
+            background: #007bff;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #0056b3;
+        }
+        
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #c82333;
+        }
+        
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #218838;
+        }
+        
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .stream-list {
+            list-style: none;
+        }
+        
+        .stream-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .stream-item:last-child {
+            border-bottom: none;
+        }
+        
+        .stream-info {
+            flex: 1;
+        }
+        
+        .stream-camera {
+            font-weight: 500;
+            color: #333;
+        }
+        
+        .stream-url {
+            font-size: 13px;
+            color: #007bff;
+            margin-top: 4px;
+            word-break: break-all;
+        }
+        
+        .stream-url a {
+            color: #007bff;
+            text-decoration: none;
+        }
+        
+        .stream-url a:hover {
+            text-decoration: underline;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            margin-right: 10px;
+        }
+        
+        .status-running {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .status-stopped {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .empty-state {
+            text-align: center;
+            color: #999;
+            padding: 30px;
+        }
+        
+        .help-text {
+            font-size: 13px;
+            color: #666;
+            margin-top: 15px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 4px;
+        }
+        
+        .help-text h3 {
+            font-size: 14px;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        .help-text code {
+            background: #e9ecef;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+        
+        .back-link {
+            display: inline-block;
+            margin-bottom: 20px;
+            color: #007bff;
+            text-decoration: none;
+        }
+        
+        .back-link:hover {
+            text-decoration: underline;
+        }
+        
+        .message {
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            display: none;
+        }
+        
+        .message.success {
+            background: #d4edda;
+            color: #155724;
+            display: block;
+        }
+        
+        .message.error {
+            background: #f8d7da;
+            color: #721c24;
+            display: block;
+        }
+        
+        /* 预览播放器 */
+        .preview-container {
+            margin-top: 20px;
+            display: none;
+        }
+        
+        .preview-container.active {
+            display: block;
+        }
+        
+        .preview-video {
+            width: 100%;
+            max-width: 640px;
+            background: #000;
+            border-radius: 8px;
+        }
+        
+        .preview-controls {
+            margin-top: 10px;
+            display: flex;
+            gap: 10px;
+        }
+        
+        .btn-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        
+        .copy-btn {
+            padding: 4px 8px;
+            background: #6c757d;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        
+        .copy-btn:hover {
+            background: #5a6268;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/" class="back-link">← 返回主页</a>
+        
+        <h1>📺 HLS 推流管理</h1>
+        
+        <div id="message" class="message"></div>
+        
+        <!-- 启动 HLS 输出 -->
+        <div class="card">
+            <h2>启动 HLS 输出</h2>
+            <div class="form-group">
+                <label>选择摄像头</label>
+                <select id="cameraSelect">
+                    <option value="">加载中...</option>
+                </select>
+            </div>
+            
+            <button class="btn btn-primary" onclick="startHLS()">开始 HLS 输出</button>
+            
+            <div class="help-text">
+                <h3>📖 说明</h3>
+                <p>HLS (HTTP Live Streaming) 是苹果开发的流媒体协议，兼容性好，支持：</p>
+                <ul style="margin: 10px 0 0 20px;">
+                    <li>Safari、Chrome、Edge 等现代浏览器</li>
+                    <li>iOS、Android 原生支持</li>
+                    <li>VLC、PotPlayer 等播放器</li>
+                    <li>可通过 Nginx 转发实现公网访问</li>
+                </ul>
+            </div>
+        </div>
+        
+        <!-- 当前 HLS 输出列表 -->
+        <div class="card">
+            <h2>当前 HLS 输出</h2>
+            <ul id="streamList" class="stream-list">
+                <li class="empty-state">暂无 HLS 输出</li>
+            </ul>
+        </div>
+        
+        <!-- 预览播放器 -->
+        <div class="card preview-container" id="previewContainer">
+            <h2>HLS 预览</h2>
+            <video id="previewVideo" class="preview-video" controls muted autoplay></video>
+            <div class="preview-controls">
+                <button class="btn btn-danger" onclick="closePreview()">关闭预览</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- HLS.js 播放器库 -->
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    
+    <script>
+        const API_BASE = '';
+        
+        // 加载摄像头列表
+        async function loadCameras() {
+            try {
+                const res = await fetch(`${API_BASE}/api/cameras`);
+                const data = await res.json();
+                
+                const select = document.getElementById('cameraSelect');
+                select.innerHTML = '';
+                
+                const cameras = data.data || data.cameras || [];
+                
+                if (cameras && cameras.length > 0) {
+                    cameras.forEach(cam => {
+                        const option = document.createElement('option');
+                        option.value = cam.id;
+                        option.textContent = `${cam.name} (${cam.id})`;
+                        select.appendChild(option);
+                    });
+                } else {
+                    select.innerHTML = '<option value="">无可用摄像头</option>';
+                }
+            } catch (err) {
+                console.error('加载摄像头失败:', err);
+                document.getElementById('cameraSelect').innerHTML = '<option value="">加载失败</option>';
+            }
+        }
+        
+        // 加载 HLS 输出列表
+        async function loadStreams() {
+            try {
+                const res = await fetch(`${API_BASE}/api/hls/status`);
+                const data = await res.json();
+                
+                const list = document.getElementById('streamList');
+                
+                if (data.outputs && Object.keys(data.outputs).length > 0) {
+                    list.innerHTML = '';
+                    for (const [cameraId, playlistUrl] of Object.entries(data.outputs)) {
+                        const fullUrl = `${window.location.origin}${playlistUrl}`;
+                        const li = document.createElement('li');
+                        li.className = 'stream-item';
+                        li.innerHTML = `
+                            <div class="stream-info">
+                                <span class="status-badge status-running">输出中</span>
+                                <span class="stream-camera">${cameraId}</span>
+                                <div class="stream-url">
+                                    <a href="${fullUrl}" target="_blank">${fullUrl}</a>
+                                </div>
+                            </div>
+                            <div class="btn-actions">
+                                <button class="copy-btn" onclick="copyUrl('${fullUrl}')">复制地址</button>
+                                <button class="btn btn-success" onclick="previewHLS('${playlistUrl}')">预览</button>
+                                <button class="btn btn-danger" onclick="stopHLS('${cameraId}')">停止</button>
+                            </div>
+                        `;
+                        list.appendChild(li);
+                    }
+                } else {
+                    list.innerHTML = '<li class="empty-state">暂无 HLS 输出</li>';
+                }
+            } catch (err) {
+                console.error('加载 HLS 列表失败:', err);
+            }
+        }
+        
+        // 显示消息
+        function showMessage(text, type) {
+            const msg = document.getElementById('message');
+            msg.textContent = text;
+            msg.className = `message ${type}`;
+            setTimeout(() => {
+                msg.className = 'message';
+            }, 5000);
+        }
+        
+        // 启动 HLS 输出
+        async function startHLS() {
+            const cameraId = document.getElementById('cameraSelect').value;
+            
+            if (!cameraId) {
+                showMessage('请选择摄像头', 'error');
+                return;
+            }
+            
+            try {
+                const res = await fetch(`${API_BASE}/api/hls/${cameraId}/start`, {
+                    method: 'POST'
+                });
+                
+                const data = await res.json();
+                
+                if (res.ok && data.success) {
+                    showMessage(`HLS 输出已启动: ${data.playlist}`, 'success');
+                    loadStreams();
+                } else {
+                    showMessage(data.error || '启动失败', 'error');
+                }
+            } catch (err) {
+                showMessage('请求失败: ' + err.message, 'error');
+            }
+        }
+        
+        // 停止 HLS 输出
+        async function stopHLS(cameraId) {
+            try {
+                const res = await fetch(`${API_BASE}/api/hls/${cameraId}/stop`, {
+                    method: 'POST'
+                });
+                
+                const data = await res.json();
+                
+                if (res.ok && data.success) {
+                    showMessage('HLS 输出已停止', 'success');
+                    loadStreams();
+                    closePreview();
+                } else {
+                    showMessage(data.error || '停止失败', 'error');
+                }
+            } catch (err) {
+                showMessage('请求失败: ' + err.message, 'error');
+            }
+        }
+        
+        // 复制地址
+        function copyUrl(url) {
+            navigator.clipboard.writeText(url).then(() => {
+                showMessage('地址已复制到剪贴板', 'success');
+            }).catch(err => {
+                // 备用方法
+                const input = document.createElement('input');
+                input.value = url;
+                document.body.appendChild(input);
+                input.select();
+                document.execCommand('copy');
+                document.body.removeChild(input);
+                showMessage('地址已复制到剪贴板', 'success');
+            });
+        }
+        
+        // HLS 播放器实例
+        let hlsPlayer = null;
+        
+        // 预览 HLS 流
+        function previewHLS(playlistUrl) {
+            const container = document.getElementById('previewContainer');
+            const video = document.getElementById('previewVideo');
+            
+            container.classList.add('active');
+            
+            // 清理之前的播放器
+            if (hlsPlayer) {
+                hlsPlayer.destroy();
+                hlsPlayer = null;
+            }
+            
+            const fullUrl = playlistUrl;
+            
+            if (Hls.isSupported()) {
+                hlsPlayer = new Hls({
+                    enableWorker: true,
+                    lowLatencyMode: true
+                });
+                hlsPlayer.loadSource(fullUrl);
+                hlsPlayer.attachMedia(video);
+                hlsPlayer.on(Hls.Events.MANIFEST_PARSED, () => {
+                    video.play().catch(e => console.log('自动播放被阻止:', e));
+                });
+                hlsPlayer.on(Hls.Events.ERROR, (event, data) => {
+                    console.error('HLS 错误:', data);
+                    if (data.fatal) {
+                        showMessage('播放失败，可能是分片还在生成中，请稍后重试', 'error');
+                    }
+                });
+            } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                // Safari 原生支持
+                video.src = fullUrl;
+                video.play().catch(e => console.log('自动播放被阻止:', e));
+            } else {
+                showMessage('您的浏览器不支持 HLS 播放', 'error');
+            }
+        }
+        
+        // 关闭预览
+        function closePreview() {
+            const container = document.getElementById('previewContainer');
+            const video = document.getElementById('previewVideo');
+            
+            if (hlsPlayer) {
+                hlsPlayer.destroy();
+                hlsPlayer = null;
+            }
+            video.src = '';
+            container.classList.remove('active');
+        }
+        
+        // 初始化
+        loadCameras();
+        loadStreams();
+        
+        // 定时刷新列表
+        setInterval(loadStreams, 5000);
+    </script>
+</body>
+</html>

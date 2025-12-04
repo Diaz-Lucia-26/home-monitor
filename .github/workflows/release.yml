@@ -1,0 +1,72 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.21'
+
+    - name: Build binaries
+      run: |
+        mkdir -p dist
+        
+        # Linux AMD64
+        GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o dist/home-monitor-linux-amd64 ./cmd/server
+        
+        # Linux ARM64 (Raspberry Pi 4)
+        GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o dist/home-monitor-linux-arm64 ./cmd/server
+        
+        # Linux ARMv7 (Raspberry Pi 3)
+        GOOS=linux GOARCH=arm GOARM=7 go build -ldflags="-s -w" -o dist/home-monitor-linux-armv7 ./cmd/server
+        
+        # macOS AMD64
+        GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w" -o dist/home-monitor-darwin-amd64 ./cmd/server
+        
+        # macOS ARM64 (Apple Silicon)
+        GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w" -o dist/home-monitor-darwin-arm64 ./cmd/server
+        
+        # Windows AMD64
+        GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o dist/home-monitor-windows-amd64.exe ./cmd/server
+
+    - name: Create archives
+      run: |
+        cd dist
+        for f in home-monitor-*; do
+          if [[ "$f" == *.exe ]]; then
+            zip "${f%.exe}.zip" "$f" ../configs/config.yaml ../README.md ../LICENSE
+          else
+            tar -czf "${f}.tar.gz" "$f" -C .. configs/config.yaml README.md LICENSE
+          fi
+        done
+
+    - name: Generate changelog
+      id: changelog
+      run: |
+        echo "## What's Changed" > CHANGELOG.md
+        git log $(git describe --tags --abbrev=0 HEAD^)..HEAD --pretty=format:"- %s (%h)" >> CHANGELOG.md || echo "- Initial release" >> CHANGELOG.md
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        body_path: CHANGELOG.md
+        files: |
+          dist/*.tar.gz
+          dist/*.zip
+        draft: false
+        prerelease: false

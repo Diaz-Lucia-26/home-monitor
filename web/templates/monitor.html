@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>性能监控</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0a0a0a;
+            color: #e5e5e5;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #fff;
+            margin-bottom: 30px;
+            font-weight: 300;
+        }
+        
+        .back-link {
+            display: inline-block;
+            margin-bottom: 20px;
+            color: #3b82f6;
+            text-decoration: none;
+        }
+        
+        .back-link:hover {
+            text-decoration: underline;
+        }
+        
+        /* 状态卡片网格 */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        
+        .metric-card {
+            background: #141414;
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid #262626;
+        }
+        
+        .metric-card .label {
+            font-size: 12px;
+            color: #737373;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+        
+        .metric-card .value {
+            font-size: 28px;
+            font-weight: 600;
+            color: #fff;
+        }
+        
+        .metric-card .sub {
+            font-size: 12px;
+            color: #525252;
+            margin-top: 4px;
+        }
+        
+        .metric-card.warning .value {
+            color: #f59e0b;
+        }
+        
+        .metric-card.danger .value {
+            color: #ef4444;
+        }
+        
+        .metric-card.success .value {
+            color: #10b981;
+        }
+        
+        /* 图表区域 */
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+        
+        .chart-card {
+            background: #141414;
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid #262626;
+        }
+        
+        .chart-card h3 {
+            font-size: 14px;
+            color: #a3a3a3;
+            margin-bottom: 16px;
+            font-weight: 500;
+        }
+        
+        .chart-container {
+            height: 200px;
+        }
+        
+        /* 告警列表 */
+        .alerts-card {
+            background: #141414;
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid #262626;
+            margin-bottom: 24px;
+        }
+        
+        .alerts-card h3 {
+            font-size: 14px;
+            color: #a3a3a3;
+            margin-bottom: 16px;
+            font-weight: 500;
+        }
+        
+        .alert-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .alert-item {
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            border-bottom: 1px solid #262626;
+            gap: 12px;
+        }
+        
+        .alert-item:last-child {
+            border-bottom: none;
+        }
+        
+        .alert-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+        
+        .alert-icon.warning {
+            background: rgba(245, 158, 11, 0.2);
+        }
+        
+        .alert-icon.resolved {
+            background: rgba(16, 185, 129, 0.2);
+        }
+        
+        .alert-content {
+            flex: 1;
+        }
+        
+        .alert-message {
+            color: #e5e5e5;
+            font-size: 13px;
+        }
+        
+        .alert-time {
+            color: #525252;
+            font-size: 11px;
+            margin-top: 2px;
+        }
+        
+        .empty-alerts {
+            text-align: center;
+            color: #525252;
+            padding: 40px;
+        }
+        
+        /* 操作按钮 */
+        .actions {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary {
+            background: #3b82f6;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #2563eb;
+        }
+        
+        .btn-secondary {
+            background: #262626;
+            color: #e5e5e5;
+        }
+        
+        .btn-secondary:hover {
+            background: #363636;
+        }
+        
+        /* 系统信息 */
+        .system-info {
+            background: #141414;
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid #262626;
+        }
+        
+        .system-info h3 {
+            font-size: 14px;
+            color: #a3a3a3;
+            margin-bottom: 16px;
+            font-weight: 500;
+        }
+        
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+        }
+        
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #1f1f1f;
+        }
+        
+        .info-item .key {
+            color: #737373;
+            font-size: 13px;
+        }
+        
+        .info-item .val {
+            color: #e5e5e5;
+            font-size: 13px;
+            font-family: monospace;
+        }
+        
+        /* 刷新指示器 */
+        .refresh-indicator {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #262626;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            color: #737373;
+        }
+        
+        .refresh-indicator.active {
+            color: #10b981;
+        }
+        
+        .refresh-indicator.active::before {
+            content: '●';
+            margin-right: 6px;
+            animation: pulse 1s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/" class="back-link">← 返回主页</a>
+        
+        <h1>📊 性能监控</h1>
+        
+        <div class="refresh-indicator active" id="refreshIndicator">实时更新中</div>
+        
+        <!-- 核心指标 -->
+        <div class="metrics-grid" id="metricsGrid">
+            <div class="metric-card" id="memCard">
+                <div class="label">Go 内存</div>
+                <div class="value" id="memAlloc">--</div>
+                <div class="sub" id="memSys">系统: --</div>
+            </div>
+            <div class="metric-card" id="goroutineCard">
+                <div class="label">Goroutines</div>
+                <div class="value" id="numGoroutine">--</div>
+                <div class="sub">并发协程数</div>
+            </div>
+            <div class="metric-card" id="ffmpegMemCard">
+                <div class="label">FFmpeg 内存</div>
+                <div class="value" id="ffmpegMem">--</div>
+                <div class="sub" id="ffmpegCount">进程: --</div>
+            </div>
+            <div class="metric-card" id="ffmpegCpuCard">
+                <div class="label">FFmpeg CPU</div>
+                <div class="value" id="ffmpegCpu">--</div>
+                <div class="sub">所有子进程</div>
+            </div>
+            <div class="metric-card" id="totalMemCard">
+                <div class="label">总内存</div>
+                <div class="value" id="totalMem">--</div>
+                <div class="sub" id="totalCpu">总CPU: --</div>
+            </div>
+            <div class="metric-card success">
+                <div class="label">运行时间</div>
+                <div class="value" id="uptime">--</div>
+                <div class="sub" id="pid">PID: --</div>
+            </div>
+        </div>
+        
+        <!-- 操作按钮 -->
+        <div class="actions">
+            <button class="btn btn-primary" onclick="forceGC()">🗑️ 手动 GC</button>
+            <button class="btn btn-secondary" onclick="toggleAutoRefresh()">⏸️ 暂停刷新</button>
+            <button class="btn btn-secondary" onclick="loadHistory(5)">5分钟</button>
+            <button class="btn btn-secondary" onclick="loadHistory(30)">30分钟</button>
+            <button class="btn btn-secondary" onclick="loadHistory(60)">1小时</button>
+        </div>
+        
+        <!-- 图表 -->
+        <div class="charts-grid">
+            <div class="chart-card">
+                <h3>📈 内存使用趋势</h3>
+                <div class="chart-container">
+                    <canvas id="memoryChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-card">
+                <h3>🔄 Goroutines 趋势</h3>
+                <div class="chart-container">
+                    <canvas id="goroutineChart"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 子进程列表 -->
+        <div class="alerts-card">
+            <h3>🎬 FFmpeg 子进程</h3>
+            <div class="alert-list" id="processList">
+                <div class="empty-alerts">加载中...</div>
+            </div>
+        </div>
+        
+        <!-- 磁盘使用 -->
+        <div class="alerts-card">
+            <h3>💾 磁盘使用</h3>
+            <div id="diskInfo" style="padding: 12px;">
+                <div class="info-item">
+                    <span class="key">录像目录</span>
+                    <span class="val" id="diskPath">--</span>
+                </div>
+                <div class="info-item">
+                    <span class="key">已使用</span>
+                    <span class="val" id="diskUsed">--</span>
+                </div>
+                <div class="info-item">
+                    <span class="key">剩余空间</span>
+                    <span class="val" id="diskFree">--</span>
+                </div>
+                <div style="margin-top: 10px; background: #262626; border-radius: 4px; height: 8px; overflow: hidden;">
+                    <div id="diskBar" style="height: 100%; background: #3b82f6; width: 0%; transition: width 0.3s;"></div>
+                </div>
+                <div style="text-align: right; font-size: 12px; color: #525252; margin-top: 4px;">
+                    <span id="diskPercent">0%</span> 已使用
+                </div>
+            </div>
+        </div>
+        
+        <!-- 告警列表 -->
+        <div class="alerts-card">
+            <h3>⚠️ 告警记录</h3>
+            <div class="alert-list" id="alertList">
+                <div class="empty-alerts">暂无告警</div>
+            </div>
+        </div>
+        
+        <!-- 详细信息 -->
+        <div class="system-info">
+            <h3>🖥️ 详细指标</h3>
+            <div class="info-grid" id="detailInfo">
+                <!-- 动态填充 -->
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const API_BASE = '';
+        let autoRefresh = true;
+        let refreshInterval = null;
+        let memoryChart = null;
+        let goroutineChart = null;
+        
+        // Chart.js 配置
+        const chartOptions = {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: false,
+            plugins: {
+                legend: { display: false }
+            },
+            scales: {
+                x: {
+                    display: true,
+                    grid: { color: '#262626' },
+                    ticks: { color: '#525252', maxTicksLimit: 6 }
+                },
+                y: {
+                    display: true,
+                    grid: { color: '#262626' },
+                    ticks: { color: '#525252' }
+                }
+            }
+        };
+        
+        // 初始化图表
+        function initCharts() {
+            const memCtx = document.getElementById('memoryChart').getContext('2d');
+            memoryChart = new Chart(memCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: '内存',
+                        data: [],
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 0
+                    }]
+                },
+                options: {
+                    ...chartOptions,
+                    scales: {
+                        ...chartOptions.scales,
+                        y: {
+                            ...chartOptions.scales.y,
+                            ticks: {
+                                ...chartOptions.scales.y.ticks,
+                                callback: (value) => formatBytes(value)
+                            }
+                        }
+                    }
+                }
+            });
+            
+            const goroutineCtx = document.getElementById('goroutineChart').getContext('2d');
+            goroutineChart = new Chart(goroutineCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Goroutines',
+                        data: [],
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 0
+                    }]
+                },
+                options: chartOptions
+            });
+        }
+        
+        // 加载当前指标
+        async function loadMetrics() {
+            try {
+                const res = await fetch(`${API_BASE}/api/monitor/metrics`);
+                const data = await res.json();
+                
+                if (data.success) {
+                    updateMetricsDisplay(data.data);
+                }
+            } catch (err) {
+                console.error('加载指标失败:', err);
+            }
+        }
+        
+        // 更新指标显示
+        function updateMetricsDisplay(metrics) {
+            document.getElementById('memAlloc').textContent = metrics.mem_alloc_str;
+            document.getElementById('memSys').textContent = `系统: ${metrics.mem_sys_str}`;
+            document.getElementById('numGoroutine').textContent = metrics.num_goroutine;
+            document.getElementById('uptime').textContent = metrics.uptime;
+            document.getElementById('pid').textContent = `PID: ${metrics.pid}`;
+            
+            // 内存警告状态
+            const memCard = document.getElementById('memCard');
+            memCard.className = 'metric-card';
+            if (metrics.mem_alloc > 512 * 1024 * 1024) {
+                memCard.classList.add('danger');
+            } else if (metrics.mem_alloc > 256 * 1024 * 1024) {
+                memCard.classList.add('warning');
+            }
+            
+            // Goroutine 警告状态
+            const goroutineCard = document.getElementById('goroutineCard');
+            goroutineCard.className = 'metric-card';
+            if (metrics.num_goroutine > 1000) {
+                goroutineCard.classList.add('danger');
+            } else if (metrics.num_goroutine > 500) {
+                goroutineCard.classList.add('warning');
+            }
+            
+            // 详细信息
+            updateDetailInfo(metrics);
+        }
+        
+        // 更新详细信息
+        function updateDetailInfo(metrics) {
+            const items = [
+                { key: 'CPU 核心', val: metrics.num_cpu },
+                { key: '堆内存', val: metrics.mem_heap_alloc_str },
+                { key: '累计分配', val: formatBytes(metrics.mem_total_alloc) },
+                { key: 'CGO 调用', val: metrics.cgo_calls },
+                { key: 'GC CPU占用', val: metrics.gc_cpu_percent.toFixed(2) + '%' },
+                { key: 'GC 暂停总时间', val: (metrics.pause_total_ns / 1e6).toFixed(2) + 'ms' },
+                { key: '栈内存', val: formatBytes(metrics.mem_stack_inuse) },
+                { key: '下次GC目标', val: formatBytes(metrics.next_gc) }
+            ];
+            
+            const container = document.getElementById('detailInfo');
+            container.innerHTML = items.map(item => `
+                <div class="info-item">
+                    <span class="key">${item.key}</span>
+                    <span class="val">${item.val}</span>
+                </div>
+            `).join('');
+        }
+        
+        // 加载历史数据
+        async function loadHistory(minutes = 30) {
+            try {
+                const res = await fetch(`${API_BASE}/api/monitor/history?minutes=${minutes}`);
+                const data = await res.json();
+                
+                if (data.success && data.data) {
+                    updateCharts(data.data);
+                }
+            } catch (err) {
+                console.error('加载历史数据失败:', err);
+            }
+        }
+        
+        // 更新图表
+        function updateCharts(history) {
+            const labels = history.map(p => {
+                const d = new Date(p.timestamp);
+                return d.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+            });
+            
+            memoryChart.data.labels = labels;
+            memoryChart.data.datasets[0].data = history.map(p => p.mem_alloc);
+            memoryChart.update('none');
+            
+            goroutineChart.data.labels = labels;
+            goroutineChart.data.datasets[0].data = history.map(p => p.num_goroutine);
+            goroutineChart.update('none');
+        }
+        
+        // 加载告警
+        async function loadAlerts() {
+            try {
+                const res = await fetch(`${API_BASE}/api/monitor/alerts?limit=20`);
+                const data = await res.json();
+                
+                const container = document.getElementById('alertList');
+                
+                if (data.success && data.data && data.data.length > 0) {
+                    container.innerHTML = data.data.map(alert => `
+                        <div class="alert-item">
+                            <div class="alert-icon ${alert.resolved ? 'resolved' : 'warning'}">
+                                ${alert.resolved ? '✅' : '⚠️'}
+                            </div>
+                            <div class="alert-content">
+                                <div class="alert-message">${alert.message}</div>
+                                <div class="alert-time">${new Date(alert.time).toLocaleString('zh-CN')}</div>
+                            </div>
+                        </div>
+                    `).join('');
+                } else {
+                    container.innerHTML = '<div class="empty-alerts">暂无告警 ✨</div>';
+                }
+            } catch (err) {
+                console.error('加载告警失败:', err);
+            }
+        }
+        
+        // 加载 FFmpeg 子进程
+        async function loadSubprocesses() {
+            try {
+                const res = await fetch(`${API_BASE}/api/monitor/subprocesses`);
+                const data = await res.json();
+                
+                const container = document.getElementById('processList');
+                
+                if (data.success && data.data && data.data.length > 0) {
+                    let totalCPU = 0;
+                    let totalMem = 0;
+                    
+                    container.innerHTML = data.data.map(proc => {
+                        totalCPU += proc.cpu_percent;
+                        totalMem += proc.mem_mb;
+                        
+                        // 截取命令显示
+                        let cmdDisplay = proc.command;
+                        if (cmdDisplay.length > 80) {
+                            cmdDisplay = cmdDisplay.substring(0, 80) + '...';
+                        }
+                        
+                        return `
+                            <div class="alert-item">
+                                <div class="alert-icon" style="background: rgba(59, 130, 246, 0.2);">🎬</div>
+                                <div class="alert-content" style="flex: 1;">
+                                    <div class="alert-message">
+                                        <strong>PID ${proc.pid}</strong> - CPU: ${proc.cpu_percent.toFixed(1)}% | 内存: ${proc.mem_mb.toFixed(1)} MB
+                                    </div>
+                                    <div class="alert-time" title="${proc.command}">${cmdDisplay}</div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                    
+                    // 更新汇总
+                    document.getElementById('ffmpegCount').textContent = `进程: ${data.data.length}`;
+                    document.getElementById('ffmpegMem').textContent = totalMem.toFixed(1) + ' MB';
+                    document.getElementById('ffmpegCpu').textContent = totalCPU.toFixed(1) + '%';
+                    document.getElementById('totalMem').textContent = formatBytes(data.total_mem || 0);
+                    document.getElementById('totalCpu').textContent = `总CPU: ${totalCPU.toFixed(1)}%`;
+                } else {
+                    container.innerHTML = '<div class="empty-alerts">暂无 FFmpeg 进程运行</div>';
+                    document.getElementById('ffmpegCount').textContent = '进程: 0';
+                    document.getElementById('ffmpegMem').textContent = '0 MB';
+                    document.getElementById('ffmpegCpu').textContent = '0%';
+                    document.getElementById('totalMem').textContent = '--';
+                    document.getElementById('totalCpu').textContent = '总CPU: 0%';
+                }
+            } catch (err) {
+                console.error('加载子进程失败:', err);
+            }
+        }
+        
+        // 加载磁盘使用
+        async function loadDiskUsage() {
+            try {
+                const res = await fetch(`${API_BASE}/api/monitor/disk`);
+                const data = await res.json();
+                
+                if (data.success && data.data) {
+                    const disk = data.data;
+                    document.getElementById('diskPath').textContent = disk.path || '--';
+                    document.getElementById('diskUsed').textContent = formatBytes(disk.used);
+                    document.getElementById('diskFree').textContent = formatBytes(disk.free);
+                    document.getElementById('diskPercent').textContent = disk.used_percent.toFixed(1) + '%';
+                    
+                    // 更新进度条
+                    const progressBar = document.getElementById('diskBar');
+                    progressBar.style.width = disk.used_percent + '%';
+                    
+                    // 根据使用率改变颜色
+                    if (disk.used_percent > 90) {
+                        progressBar.style.background = '#e74c3c';
+                    } else if (disk.used_percent > 70) {
+                        progressBar.style.background = '#f39c12';
+                    } else {
+                        progressBar.style.background = '#3b82f6';
+                    }
+                }
+            } catch (err) {
+                console.error('加载磁盘使用失败:', err);
+            }
+        }
+        
+        // 强制 GC
+        async function forceGC() {
+            try {
+                const res = await fetch(`${API_BASE}/api/monitor/gc`, { method: 'POST' });
+                const data = await res.json();
+                
+                if (data.success) {
+                    loadMetrics();
+                    loadHistory(5);
+                }
+            } catch (err) {
+                console.error('GC 执行失败:', err);
+            }
+        }
+        
+        // 切换自动刷新
+        function toggleAutoRefresh() {
+            autoRefresh = !autoRefresh;
+            const indicator = document.getElementById('refreshIndicator');
+            const btn = event.target;
+            
+            if (autoRefresh) {
+                startRefresh();
+                indicator.textContent = '实时更新中';
+                indicator.classList.add('active');
+                btn.textContent = '⏸️ 暂停刷新';
+            } else {
+                stopRefresh();
+                indicator.textContent = '已暂停';
+                indicator.classList.remove('active');
+                btn.textContent = '▶️ 继续刷新';
+            }
+        }
+        
+        // 启动刷新
+        function startRefresh() {
+            if (refreshInterval) clearInterval(refreshInterval);
+            refreshInterval = setInterval(() => {
+                loadMetrics();
+                loadHistory(5);
+                loadSubprocesses();
+                loadDiskUsage();
+            }, 5000);
+        }
+        
+        // 停止刷新
+        function stopRefresh() {
+            if (refreshInterval) {
+                clearInterval(refreshInterval);
+                refreshInterval = null;
+            }
+        }
+        
+        // 格式化字节
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+        }
+        
+        // 初始化
+        initCharts();
+        loadMetrics();
+        loadHistory(5);
+        loadAlerts();
+        loadSubprocesses();
+        loadDiskUsage();
+        startRefresh();
+        
+        // 定时刷新告警
+        setInterval(loadAlerts, 30000);
+    </script>
+</body>
+</html>

@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebRTC 实时预览 - 家庭监控</title>
+    <style>
+        :root {
+            --bg-primary: #fafafa;
+            --bg-secondary: #ffffff;
+            --text-primary: #1a1a1a;
+            --text-secondary: #666666;
+            --text-muted: #999999;
+            --border-color: #e5e5e5;
+            --accent: #10b981;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --radius: 8px;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg-primary: #0a0a0a;
+                --bg-secondary: #141414;
+                --text-primary: #fafafa;
+                --text-secondary: #a3a3a3;
+                --text-muted: #737373;
+                --border-color: #262626;
+            }
+        }
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        .header p {
+            color: var(--text-muted);
+            font-size: 0.875rem;
+        }
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            background: var(--accent);
+            color: white;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            margin-left: 8px;
+        }
+        .cameras-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(480px, 1fr));
+            gap: 20px;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+        .camera-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            overflow: hidden;
+        }
+        .camera-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .camera-name {
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--text-muted);
+            transition: background 0.3s;
+        }
+        .status-dot.connected { background: var(--success); }
+        .status-dot.connecting { background: var(--warning); }
+        .status-dot.error { background: var(--danger); }
+        .camera-view {
+            aspect-ratio: 16/9;
+            background: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+        .camera-view video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+        .camera-info {
+            padding: 12px 20px;
+            font-size: 0.8125rem;
+            color: var(--text-muted);
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .camera-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .status-text {
+            font-size: 0.75rem;
+        }
+        .status-text.connecting { color: var(--warning); }
+        .status-text.connected { color: var(--success); }
+        .status-text.error { color: var(--danger); }
+        .btn {
+            padding: 6px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            cursor: pointer;
+            font-size: 0.75rem;
+            transition: all 0.2s;
+        }
+        .btn:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+        .btn.active {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: white;
+        }
+        .btn.mute-btn {
+            background: var(--warning);
+            border-color: var(--warning);
+            color: white;
+            animation: pulse 2s infinite;
+        }
+        .btn.mute-btn.active {
+            background: var(--accent);
+            border-color: var(--accent);
+            animation: none;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        .volume-slider {
+            width: 60px;
+            height: 4px;
+            -webkit-appearance: none;
+            background: var(--border-color);
+            border-radius: 2px;
+            outline: none;
+        }
+        .volume-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 12px;
+            height: 12px;
+            background: var(--accent);
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        .placeholder {
+            color: var(--text-muted);
+            text-align: center;
+        }
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+        }
+        .spinner {
+            width: 32px;
+            height: 32px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            color: var(--text-muted);
+            font-size: 0.75rem;
+        }
+        .footer a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+        .stats {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎥 WebRTC 实时预览 <span class="badge">音视频</span></h1>
+        <p>低延迟 P2P 音视频传输 - VP8 + Opus 编码</p>
+    </div>
+
+    <div class="cameras-grid" id="cameras"></div>
+
+    <div class="footer">
+        <p><a href="/">返回主控制台</a> | WebRTC 服务端口: {{.WebRTCPort}}</p>
+    </div>
+
+    <script>
+        const mainServerPort = {{.MainPort}};
+        const webrtcPort = {{.WebRTCPort}};
+
+        // WebRTC 连接管理
+        const connections = {};
+
+        async function loadCameras() {
+            try {
+                const resp = await fetch(`http://${location.hostname}:${mainServerPort}/api/cameras`);
+                const result = await resp.json();
+                if (result.success && result.data) {
+                    renderCameras(result.data);
+                } else {
+                    renderCameras([]);
+                }
+            } catch (err) {
+                document.getElementById('cameras').innerHTML = 
+                    `<p style="color: #ef4444;">加载摄像头失败: ${err.message}</p>`;
+            }
+        }
+
+        function renderCameras(cameras) {
+            const container = document.getElementById('cameras');
+            if (!cameras || cameras.length === 0) {
+                container.innerHTML = '<p class="placeholder">暂无摄像头</p>';
+                return;
+            }
+
+            container.innerHTML = cameras.map(cam => `
+                <div class="camera-card" id="card-${cam.id}">
+                    <div class="camera-header">
+                        <div class="camera-name">
+                            <span class="status-dot" id="dot-${cam.id}"></span>
+                            ${cam.name}
+                        </div>
+                        <span class="stats" id="stats-${cam.id}">--</span>
+                    </div>
+                    <div class="camera-view" id="view-${cam.id}">
+                        <video id="video-${cam.id}" autoplay playsinline muted></video>
+                        <div class="loading-overlay" id="overlay-${cam.id}">
+                            <div class="spinner"></div>
+                        </div>
+                    </div>
+                    <div class="camera-info">
+                        <div>
+                            ${cam.is_running ? '● 在线' : '○ 离线'} | 
+                            <span class="status-text" id="status-${cam.id}">未连接</span>
+                        </div>
+                        <div class="camera-controls">
+                            <button class="btn mute-btn" onclick="toggleMute('${cam.id}')" id="mute-btn-${cam.id}" title="点击取消静音听到声音">
+                                🔇 点击听声音
+                            </button>
+                            <input type="range" class="volume-slider" id="volume-${cam.id}" 
+                                   min="0" max="100" value="80" onchange="setVolume('${cam.id}', this.value)">
+                            <button class="btn" onclick="toggleFullscreen('${cam.id}')" title="全屏">
+                                ⛶
+                            </button>
+                            <button class="btn" onclick="toggleConnection('${cam.id}')" id="btn-${cam.id}">
+                                连接
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+
+            // 自动连接所有在线摄像头
+            cameras.filter(cam => cam.is_running).forEach(cam => {
+                setTimeout(() => startWebRTC(cam.id), 500);
+            });
+        }
+
+        function setStatus(cameraId, status, text) {
+            const dot = document.getElementById(`dot-${cameraId}`);
+            const statusText = document.getElementById(`status-${cameraId}`);
+            const btn = document.getElementById(`btn-${cameraId}`);
+            
+            if (dot) {
+                dot.className = 'status-dot ' + status;
+            }
+            if (statusText) {
+                statusText.className = 'status-text ' + status;
+                statusText.textContent = text;
+            }
+            if (btn) {
+                btn.textContent = status === 'connected' ? '断开' : '连接';
+                btn.className = status === 'connected' ? 'btn active' : 'btn';
+            }
+        }
+
+        function toggleConnection(cameraId) {
+            if (connections[cameraId]) {
+                closeConnection(cameraId);
+            } else {
+                startWebRTC(cameraId);
+            }
+        }
+
+        function toggleMute(cameraId) {
+            const video = document.getElementById(`video-${cameraId}`);
+            const btn = document.getElementById(`mute-btn-${cameraId}`);
+            if (video) {
+                video.muted = !video.muted;
+                if (video.muted) {
+                    btn.textContent = '🔇 点击听声音';
+                    btn.classList.remove('active');
+                } else {
+                    btn.textContent = '🔊 有声音';
+                    btn.classList.add('active');
+                    // 设置音量
+                    const volumeSlider = document.getElementById(`volume-${cameraId}`);
+                    video.volume = (volumeSlider ? volumeSlider.value : 80) / 100;
+                }
+            }
+        }
+
+        function setVolume(cameraId, value) {
+            const video = document.getElementById(`video-${cameraId}`);
+            if (video) {
+                video.volume = value / 100;
+            }
+        }
+
+        function toggleFullscreen(cameraId) {
+            const container = document.getElementById(`view-${cameraId}`);
+            if (document.fullscreenElement) {
+                document.exitFullscreen();
+            } else if (container) {
+                container.requestFullscreen();
+            }
+        }
+
+        async function startWebRTC(cameraId) {
+            if (connections[cameraId]) {
+                return;
+            }
+
+            setStatus(cameraId, 'connecting', '连接中...');
+            const overlay = document.getElementById(`overlay-${cameraId}`);
+            if (overlay) overlay.style.display = 'flex';
+
+            try {
+                const pc = new RTCPeerConnection({
+                    iceServers: [
+                        { urls: 'stun:stun.l.google.com:19302' },
+                        { urls: 'stun:stun1.l.google.com:19302' }
+                    ]
+                });
+
+                connections[cameraId] = { pc, connectionId: null };
+
+                const video = document.getElementById(`video-${cameraId}`);
+                let mediaStream = new MediaStream();
+                video.srcObject = mediaStream;
+
+                // 监听媒体轨道 - 这是最重要的事件
+                pc.ontrack = (event) => {
+                    console.log('🎬 收到媒体轨道:', event.track.kind, 'streams:', event.streams.length);
+                    console.log('Track ID:', event.track.id, 'State:', event.track.readyState, 'Enabled:', event.track.enabled);
+                    
+                    // 直接添加轨道到我们创建的 MediaStream
+                    mediaStream.addTrack(event.track);
+                    console.log('📺 MediaStream tracks:', mediaStream.getTracks().map(t => t.kind + ':' + t.readyState));
+                    
+                    // 监听轨道状态变化
+                    event.track.onunmute = () => {
+                        console.log('🔊 Track unmuted:', event.track.kind);
+                    };
+                    event.track.onended = () => {
+                        console.log('⏹️ Track ended:', event.track.kind);
+                    };
+                    
+                    // 尝试播放
+                    video.play().then(() => {
+                        console.log('▶️ 视频开始播放');
+                        // 隐藏加载层
+                        if (overlay) overlay.style.display = 'none';
+                        setStatus(cameraId, 'connected', '已连接');
+                    }).catch(e => {
+                        console.log('⚠️ 自动播放受限:', e);
+                        // 仍然隐藏 overlay，用户可以手动点击播放
+                        if (overlay) overlay.style.display = 'none';
+                        setStatus(cameraId, 'connected', '点击播放');
+                    });
+                };
+
+                pc.oniceconnectionstatechange = () => {
+                    console.log('🧊 ICE state:', pc.iceConnectionState);
+                    if (pc.iceConnectionState === 'connected') {
+                        console.log('✅ ICE 连接成功');
+                    } else if (pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'disconnected') {
+                        setStatus(cameraId, 'error', '连接断开');
+                        if (overlay) {
+                            overlay.innerHTML = '<span style="color: #ef4444;">连接断开</span>';
+                            overlay.style.display = 'flex';
+                        }
+                    }
+                };
+
+                pc.onconnectionstatechange = () => {
+                    console.log('🔗 Connection state:', pc.connectionState);
+                };
+
+                pc.onsignalingstatechange = () => {
+                    console.log('📡 Signaling state:', pc.signalingState);
+                };
+
+                // 添加收发器（告诉服务器我们要接收音视频）
+                pc.addTransceiver('video', { direction: 'recvonly' });
+                pc.addTransceiver('audio', { direction: 'recvonly' });
+                console.log('📝 已添加收发器');
+
+                // 创建 offer
+                const offer = await pc.createOffer();
+                await pc.setLocalDescription(offer);
+                console.log('📤 Offer 已创建');
+
+                // 等待 ICE 候选收集完成
+                await new Promise((resolve) => {
+                    if (pc.iceGatheringState === 'complete') {
+                        resolve();
+                    } else {
+                        const checkState = () => {
+                            if (pc.iceGatheringState === 'complete') {
+                                pc.removeEventListener('icegatheringstatechange', checkState);
+                                resolve();
+                            }
+                        };
+                        pc.addEventListener('icegatheringstatechange', checkState);
+                        setTimeout(resolve, 3000);
+                    }
+                });
+                console.log('🧊 ICE 候选收集完成');
+
+                // 发送 offer 到 WebRTC 服务
+                const resp = await fetch(`http://${location.hostname}:${webrtcPort}/webrtc/offer`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        camera_id: cameraId,
+                        sdp: pc.localDescription.sdp
+                    })
+                });
+
+                const data = await resp.json();
+                console.log('📥 收到 Answer:', data.success);
+                if (!data.success) {
+                    throw new Error(data.error || 'WebRTC 连接失败');
+                }
+
+                connections[cameraId].connectionId = data.data.connection_id;
+
+                // 设置远程描述 (Answer)
+                await pc.setRemoteDescription(new RTCSessionDescription({
+                    type: 'answer',
+                    sdp: data.data.sdp
+                }));
+                console.log('✅ 远程描述已设置');
+
+                // 检查收发器状态
+                const transceivers = pc.getTransceivers();
+                console.log('📻 收发器数量:', transceivers.length);
+                transceivers.forEach((t, i) => {
+                    console.log(`  收发器 ${i}: direction=${t.direction}, currentDirection=${t.currentDirection}, mid=${t.mid}`);
+                    if (t.receiver && t.receiver.track) {
+                        console.log(`    Track: ${t.receiver.track.kind}, state=${t.receiver.track.readyState}`);
+                    }
+                });
+
+                console.log('🎉 WebRTC 连接已建立:', cameraId);
+
+            } catch (err) {
+                console.error('❌ WebRTC error:', err);
+                setStatus(cameraId, 'error', '连接失败');
+                if (overlay) {
+                    overlay.innerHTML = `<span style="color: #ef4444;">${err.message}</span>`;
+                    overlay.style.display = 'flex';
+                }
+                closeConnection(cameraId);
+            }
+        }
+
+        function startStatsMonitor(cameraId) {
+            const conn = connections[cameraId];
+            if (!conn) return;
+
+            const interval = setInterval(async () => {
+                if (!connections[cameraId]) {
+                    clearInterval(interval);
+                    return;
+                }
+
+                try {
+                    const stats = await conn.pc.getStats();
+                    let videoInfo = '';
+                    let audioInfo = '';
+
+                    stats.forEach(report => {
+                        if (report.type === 'inbound-rtp') {
+                            if (report.kind === 'video') {
+                                const fps = report.framesPerSecond || 0;
+                                const kbps = Math.round((report.bytesReceived * 8) / 1000);
+                                videoInfo = `${fps}fps`;
+                            } else if (report.kind === 'audio') {
+                                audioInfo = '🔊';
+                            }
+                        }
+                    });
+
+                    const statsEl = document.getElementById(`stats-${cameraId}`);
+                    if (statsEl) {
+                        statsEl.textContent = [videoInfo, audioInfo].filter(Boolean).join(' ') || '--';
+                    }
+                } catch (e) {
+                    // ignore
+                }
+            }, 2000);
+        }
+
+        function closeConnection(cameraId) {
+            const conn = connections[cameraId];
+            if (!conn) return;
+
+            if (conn.pc) {
+                conn.pc.close();
+            }
+
+            // 通知服务器关闭连接
+            if (conn.connectionId) {
+                fetch(`http://${location.hostname}:${webrtcPort}/webrtc/close`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ connection_id: conn.connectionId })
+                }).catch(() => {});
+            }
+
+            delete connections[cameraId];
+            
+            // 清除视频
+            const video = document.getElementById(`video-${cameraId}`);
+            if (video) video.srcObject = null;
+            
+            // 显示加载层
+            const overlay = document.getElementById(`overlay-${cameraId}`);
+            if (overlay) {
+                overlay.innerHTML = '<div class="spinner"></div>';
+                overlay.style.display = 'flex';
+            }
+
+            setStatus(cameraId, '', '未连接');
+        }
+
+        // 页面卸载时关闭所有连接
+        window.addEventListener('beforeunload', () => {
+            Object.keys(connections).forEach(closeConnection);
+        });
+
+        loadCameras();
+    </script>
+</body>
+</html>

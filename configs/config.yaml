@@ -1,0 +1,90 @@
+# 家庭监控服务配置文件
+
+server:
+  host: "0.0.0.0"
+  port: 8080
+
+# 实时预览配置 - 每种预览方式独立端口和前端
+preview:
+  # MJPEG 流预览（简单、兼容性好、带宽较高）
+  mjpeg:
+    enabled: true
+    port: 8081          # MJPEG 服务独立端口
+    quality: 5          # JPEG 质量 1-31，越小越好
+
+  # WebRTC 预览（低延迟、P2P、需要 STUN 服务器）
+  webrtc:
+    enabled: true
+    port: 8082          # WebRTC 服务独立端口
+    stun_servers:
+      - "stun:stun.l.google.com:19302"
+      - "stun:stun1.l.google.com:19302"
+
+cameras:
+  # HLS 测试流 (Apple 官方测试)
+  - id: "hls_test"
+    name: "HLS测试流"
+    type: "hls"
+    hls_url: "http://devimages.apple.com/iphone/samples/bipbop/gear1/prog_index.m3u8"
+    width: 192
+    height: 144
+    fps: 15
+    enabled: false
+    audio:
+      enabled: true
+
+
+  # USB 摄像头示例
+  - id: "cam1"
+    name: "客厅摄像头"
+    # 摄像头来源类型: usb, rtsp, hls, file
+    type: "usb"
+    # USB摄像头设备索引 (Linux: /dev/video0 = 0, Windows: 0)
+    device_index: 0
+    # RTSP流地址 (如果type为rtsp)
+    rtsp_url: ""
+    # HLS/m3u8流地址 (如果type为hls)
+    hls_url: ""
+    # 分辨率
+    width: 1280
+    height: 720
+    # 帧率
+    fps: 30
+    # 是否启用
+    enabled: true
+    # 音频配置
+    audio:
+      # 是否启用音频录制
+      enabled: true
+      # 音频设备类型: usb, pulse, alsa, avfoundation
+      # macOS: avfoundation, Linux: alsa/pulse, Windows: dshow
+      type: "avfoundation"
+      # 音频设备索引 (macOS: 0=内置麦克风, Linux: hw:0)
+      device_index: 0
+      # 音频设备名称 (可选，Windows/macOS 可用设备名)
+      device_name: ""
+      # 采样率 (默认 44100)
+      sample_rate: 44100
+      # 声道数 (默认 2)
+      channels: 2
+
+storage:
+  # 是否启用自动录像
+  enabled: true
+  # 视频存储路径
+  path: "./recordings"
+  # 单个视频文件最大时长
+  # 支持格式: 300(秒), "5m"(分钟), "1h"(小时), "1h30m", "1d"(天)
+  segment_duration: "30m"
+  # 保留天数
+  retention_days: 7
+  # 视频格式: mp4, avi
+  format: "mp4"
+
+stream:
+  # HLS分片时长(秒)
+  hls_segment_duration: 2
+  # HLS播放列表长度
+  hls_playlist_length: 5
+  # 临时文件路径
+  temp_path: "./temp"

@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ .title }}</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>家庭监控</h1>
+            <div class="status-bar">
+                <span id="system-status">连接中</span>
+                <span id="current-time"></span>
+            </div>
+        </header>
+
+        <!-- 预览服务快捷链接 -->
+        <div class="preview-links">
+            {{ if .MJPEGEnabled }}
+            <a href="http://{{ .Host }}:{{ .MJPEGPort }}" target="_blank" class="preview-link mjpeg">
+                📺 MJPEG 预览 (:{{ .MJPEGPort }})
+            </a>
+            {{ end }}
+            {{ if .WebRTCEnabled }}
+            <a href="http://{{ .Host }}:{{ .WebRTCPort }}" target="_blank" class="preview-link webrtc">
+                🌐 WebRTC 预览 (:{{ .WebRTCPort }})
+            </a>
+            {{ end }}
+            <a href="/rtmp" class="preview-link rtmp">
+                📡 RTMP 推流
+            </a>
+            <a href="/hls" class="preview-link hls">
+                📺 HLS 推流
+            </a>
+            <a href="/monitor" class="preview-link monitor">
+                📊 性能监控
+            </a>
+        </div>
+
+        <nav class="nav-tabs">
+            <button class="tab-btn active" data-tab="live">实时画面</button>
+            <button class="tab-btn" data-tab="recordings">录像</button>
+            <button class="tab-btn" data-tab="settings">设置</button>
+        </nav>
+
+        <main class="main-content">
+            <!-- 实时监控 -->
+            <section id="live-section" class="tab-content active">
+                <div class="cameras-grid" id="cameras-container">
+                    <!-- 摄像头将通过JS动态加载 -->
+                </div>
+            </section>
+
+            <!-- 录像回放 -->
+            <section id="recordings-section" class="tab-content">
+                <div class="recordings-header">
+                    <div class="filter-group">
+                        <label>摄像头</label>
+                        <select id="recording-camera-select">
+                            <option value="">全部</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>日期</label>
+                        <input type="date" id="recording-date">
+                    </div>
+                    <button id="refresh-recordings" class="btn btn-secondary">刷新列表</button>
+                </div>
+                <div class="recordings-list" id="recordings-list">
+                    <div class="empty-state">
+                        <p>📁</p>
+                        <p>暂无录像</p>
+                    </div>
+                </div>
+                <div class="video-player-container" id="video-player-container" style="display: none;">
+                    <video id="video-player" controls></video>
+                    <button id="close-player" class="btn btn-secondary">关闭播放器</button>
+                </div>
+            </section>
+
+            <!-- 设置 -->
+            <section id="settings-section" class="tab-content">
+                <div class="settings-panel">
+                    <h3>摄像头列表</h3>
+                    <div id="camera-settings-list">
+                        <!-- 摄像头设置将通过JS动态加载 -->
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer class="footer">
+            Home Monitor v1.0
+        </footer>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+</body>
+</html>

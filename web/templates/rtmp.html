@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RTMP 推流管理</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+            font-weight: 300;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .card h2 {
+            font-size: 18px;
+            color: #333;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            color: #666;
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+        
+        .form-group select,
+        .form-group input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #007bff;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary {
+            background: #007bff;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #0056b3;
+        }
+        
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #c82333;
+        }
+        
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .stream-list {
+            list-style: none;
+        }
+        
+        .stream-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .stream-item:last-child {
+            border-bottom: none;
+        }
+        
+        .stream-info {
+            flex: 1;
+        }
+        
+        .stream-camera {
+            font-weight: 500;
+            color: #333;
+        }
+        
+        .stream-url {
+            font-size: 12px;
+            color: #666;
+            margin-top: 4px;
+            word-break: break-all;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            margin-right: 10px;
+        }
+        
+        .status-running {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .status-stopped {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .empty-state {
+            text-align: center;
+            color: #999;
+            padding: 30px;
+        }
+        
+        .presets {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .preset-btn {
+            padding: 5px 10px;
+            background: #f0f0f0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        
+        .preset-btn:hover {
+            background: #e0e0e0;
+        }
+        
+        .help-text {
+            font-size: 12px;
+            color: #888;
+            margin-top: 5px;
+        }
+        
+        .back-link {
+            display: inline-block;
+            margin-bottom: 20px;
+            color: #007bff;
+            text-decoration: none;
+        }
+        
+        .back-link:hover {
+            text-decoration: underline;
+        }
+        
+        .message {
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            display: none;
+        }
+        
+        .message.success {
+            background: #d4edda;
+            color: #155724;
+            display: block;
+        }
+        
+        .message.error {
+            background: #f8d7da;
+            color: #721c24;
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/" class="back-link">← 返回主页</a>
+        
+        <h1>📡 RTMP 推流管理</h1>
+        
+        <div id="message" class="message"></div>
+        
+        <!-- 启动推流 -->
+        <div class="card">
+            <h2>启动推流</h2>
+            <div class="form-group">
+                <label>选择摄像头</label>
+                <select id="cameraSelect">
+                    <option value="">加载中...</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>RTMP 服务器地址</label>
+                <div class="presets">
+                    <button class="preset-btn" onclick="setPreset('youtube')">YouTube</button>
+                    <button class="preset-btn" onclick="setPreset('twitch')">Twitch</button>
+                    <button class="preset-btn" onclick="setPreset('bilibili')">Bilibili</button>
+                    <button class="preset-btn" onclick="setPreset('custom')">自定义</button>
+                </div>
+                <input type="text" id="rtmpUrl" placeholder="rtmp://your-server/live/stream-key">
+                <p class="help-text">
+                    YouTube: rtmp://a.rtmp.youtube.com/live2/[stream-key]<br>
+                    Twitch: rtmp://live.twitch.tv/app/[stream-key]<br>
+                    Bilibili: rtmp://live-push.bilivideo.com/live-bvc/[stream-key]
+                </p>
+            </div>
+            
+            <button class="btn btn-primary" onclick="startStream()">开始推流</button>
+        </div>
+        
+        <!-- 当前推流列表 -->
+        <div class="card">
+            <h2>当前推流</h2>
+            <ul id="streamList" class="stream-list">
+                <li class="empty-state">暂无推流</li>
+            </ul>
+        </div>
+    </div>
+    
+    <script>
+        const API_BASE = '';
+        
+        // 加载摄像头列表
+        async function loadCameras() {
+            try {
+                const res = await fetch(`${API_BASE}/api/cameras`);
+                const data = await res.json();
+                
+                const select = document.getElementById('cameraSelect');
+                select.innerHTML = '';
+                
+                // API 返回格式是 { success: true, data: [...] }
+                const cameras = data.data || data.cameras || [];
+                
+                if (cameras && cameras.length > 0) {
+                    cameras.forEach(cam => {
+                        const option = document.createElement('option');
+                        option.value = cam.id;
+                        option.textContent = `${cam.name} (${cam.id})`;
+                        select.appendChild(option);
+                    });
+                } else {
+                    select.innerHTML = '<option value="">无可用摄像头</option>';
+                }
+            } catch (err) {
+                console.error('加载摄像头失败:', err);
+                document.getElementById('cameraSelect').innerHTML = '<option value="">加载失败</option>';
+            }
+        }
+        
+        // 加载推流列表
+        async function loadStreams() {
+            try {
+                const res = await fetch(`${API_BASE}/api/rtmp/streams`);
+                const data = await res.json();
+                
+                const list = document.getElementById('streamList');
+                
+                if (data.streams && Object.keys(data.streams).length > 0) {
+                    list.innerHTML = '';
+                    for (const [cameraId, url] of Object.entries(data.streams)) {
+                        const li = document.createElement('li');
+                        li.className = 'stream-item';
+                        li.innerHTML = `
+                            <div class="stream-info">
+                                <span class="status-badge status-running">推流中</span>
+                                <span class="stream-camera">${cameraId}</span>
+                                <div class="stream-url">${url}</div>
+                            </div>
+                            <button class="btn btn-danger" onclick="stopStream('${cameraId}')">停止</button>
+                        `;
+                        list.appendChild(li);
+                    }
+                } else {
+                    list.innerHTML = '<li class="empty-state">暂无推流</li>';
+                }
+            } catch (err) {
+                console.error('加载推流列表失败:', err);
+            }
+        }
+        
+        // 设置预设 RTMP 地址
+        function setPreset(type) {
+            const input = document.getElementById('rtmpUrl');
+            switch (type) {
+                case 'youtube':
+                    input.value = 'rtmp://a.rtmp.youtube.com/live2/YOUR-STREAM-KEY';
+                    break;
+                case 'twitch':
+                    input.value = 'rtmp://live.twitch.tv/app/YOUR-STREAM-KEY';
+                    break;
+                case 'bilibili':
+                    input.value = 'rtmp://live-push.bilivideo.com/live-bvc/YOUR-STREAM-KEY';
+                    break;
+                case 'custom':
+                    input.value = 'rtmp://';
+                    break;
+            }
+            input.focus();
+        }
+        
+        // 显示消息
+        function showMessage(text, type) {
+            const msg = document.getElementById('message');
+            msg.textContent = text;
+            msg.className = `message ${type}`;
+            setTimeout(() => {
+                msg.className = 'message';
+            }, 5000);
+        }
+        
+        // 启动推流
+        async function startStream() {
+            const cameraId = document.getElementById('cameraSelect').value;
+            const rtmpUrl = document.getElementById('rtmpUrl').value.trim();
+            
+            if (!cameraId) {
+                showMessage('请选择摄像头', 'error');
+                return;
+            }
+            
+            if (!rtmpUrl || !rtmpUrl.startsWith('rtmp://')) {
+                showMessage('请输入有效的 RTMP 地址', 'error');
+                return;
+            }
+            
+            try {
+                const res = await fetch(`${API_BASE}/api/rtmp/start`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        camera_id: cameraId,
+                        rtmp_url: rtmpUrl
+                    })
+                });
+                
+                const data = await res.json();
+                
+                if (res.ok) {
+                    showMessage('推流已启动', 'success');
+                    loadStreams();
+                } else {
+                    showMessage(data.error || '启动失败', 'error');
+                }
+            } catch (err) {
+                showMessage('请求失败: ' + err.message, 'error');
+            }
+        }
+        
+        // 停止推流
+        async function stopStream(cameraId) {
+            try {
+                const res = await fetch(`${API_BASE}/api/rtmp/stop`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ camera_id: cameraId })
+                });
+                
+                const data = await res.json();
+                
+                if (res.ok) {
+                    showMessage('推流已停止', 'success');
+                    loadStreams();
+                } else {
+                    showMessage(data.error || '停止失败', 'error');
+                }
+            } catch (err) {
+                showMessage('请求失败: ' + err.message, 'error');
+            }
+        }
+        
+        // 初始化
+        loadCameras();
+        loadStreams();
+        
+        // 定时刷新推流列表
+        setInterval(loadStreams, 10000);
+    </script>
+</body>
+</html>
